@@ -247,9 +247,9 @@ def main(shard_id):
             c = get_parent(c)
 ```
 
-`fetch_and_verify_collation(c)` involves fetching the full data of `c` (including witnesses) from the shard network, and verifying it. The above algorithm is equivalent to "pick the longest valid chain, check validity as far as possible, and if you find it's invalid then switch to the next-highest-scoring valid chain you know about". The algorithm should only stop when the validator runs out of time and it is time to create the collation. Every execution of `fetch_and_verify_collation` should also return a "write set" (see stateless client section above). Save all of these write sets, and combine them together; this is the `recent_trie_nodes_db`.
+`fetch_and_verify_collation(c)` involves fetching the full data of `c` (including witnesses) from the shard network, and verifying it. The above algorithm is equivalent to "pick the longest valid chain, check validity as far as possible, and if you find it's invalid then switch to the next-highest-scoring valid chain you know about". The algorithm should only stop when the validator runs out of time and it is time to create the collation. Every execution of `fetch_and_verify_collation` should also return a "write set" (see the stateless client section above). Save all of these write sets, and combine them together; this is the `recent_trie_nodes_db`.
 
-We can now define `UPDATE_WITNESS(tx, recent_trie_nodes_db)`. While running `GUESS_HEAD`, a node will have received some transactions. When it comes time to (attempt to) include a transaction into a collation, this algorithm will need to be run on the transaction first. Suppose that the transaction has an access list `[A1 ... An]`, and a witness `W`. For each `Ai`, use the current state tree root and get the Merkle branch for `Ai`, using the union of `recent_trie_nodes_db` and `W` as a database. If the original `W` was correct, and the transaction was sent not before the time that the client checked back to, then getting this Merkle branch will always succeed. After including the transaction into a collation, the "write set" from the state change should then also be added into the `recent_trie_nodes_db`.
+We can now define `UPDATE_WITNESS(tx, recent_trie_nodes_db)`. While running `GUESS_HEAD`, a node will have received some transactions. When it comes time to (attempt to) include a transaction into a collation, this algorithm will need to be run on the transaction first. Suppose that the transaction has an access list `[A_1 ... A_n]`, and a witness `W`. For each `A_i`, use the current state tree root and get the Merkle branch for `A_i`, using the union of `recent_trie_nodes_db` and `W` as a database. If the original `W` was correct, and the transaction was sent not before the time that the client checked back to, then getting this Merkle branch will always succeed. After including the transaction into a collation, the "write set" from the state change should then also be added into the `recent_trie_nodes_db`.
 
 Next, we have `CREATE_COLLATION`. For illustration, here is full pseudocode for a possible transaction-gathering part of this method.
 
@@ -258,7 +258,7 @@ Next, we have `CREATE_COLLATION`. For illustration, here is full pseudocode for 
 txpool = sorted(copy(available_transactions), key=-tx.gasprice)
 collation = new Collation(...)
 while len(txpool) > 0:
-    # Remove txs that ask for too much gas
+    # Remove txs that ask for too much gas.
     i = 0
     while i < len(txpool):
         if txpool[i].startgas > GASLIMIT - collation.gasused:
@@ -267,7 +267,7 @@ while len(txpool) > 0:
             i += 1
     tx = copy.deepcopy(txpool[0])
     tx.witness = UPDATE_WITNESS(tx.witness, recent_trie_nodes_db)
-    # Try to add the transaction, discard if it fails
+    # Try to add the transaction, while discard it if it fails.
     success, reads, writes = add_transaction(collation, tx)
     recent_trie_nodes_db = union(recent_trie_nodes_db, writes)
     txpool.pop(0)
@@ -288,7 +288,7 @@ The format of a transaction now becomes (note that this includes [account abstra
         target,        # account the tx goes to
         data,          # transaction data
         start_gas,     # starting gas
-        gasprice,      # gasprice
+        gasprice,      # gas price
         access_list,   # access list (see below for specification)
         code           # initcode of the target (for account creation)
     ]
@@ -296,13 +296,13 @@ The format of a transaction now becomes (note that this includes [account abstra
 
 The process for applying a transaction is now as follows:
 
-* Verify that the `chain_id` and `shard_id` are correct
-* Subtract `start_gas * gasprice` wei from the `target` account
-* Check if the target `account` has code. If not, verify that `sha3(code)[12:] == target`
-* If the target account is empty, execute a contract creation at the `target` with `code` as init code; otherwise skip this step
-* Execute a message with the remaining gas as startgas, the `target` as the to address, 0xff...ff as the sender, 0 value, and the transaction `data` as data
-* If either of the two executions fail, and <= 200000 gas has been consumed (i.e., `start_gas - remaining_gas <= 200000`), the transaction is invalid
-* Otherwise `remaining_gas * gasprice` is refunded, and the fee paid is added to a fee counter (note: fees are NOT immediately added to the coinbase balance; instead, fees are added all at once during block finalization)
+* Verify that the `chain_id` and `shard_id` are correct.
+* Subtract `start_gas * gasprice` wei from the `target` account.
+* Check if the target `account` has code. If not, verify that `sha3(code)[12:] == target`.
+* If the target account is empty, execute a contract creation at the `target` with `code` as init code; otherwise skip this step.
+* Execute a message with the remaining gas as the start gas (i.e. `remaining_gas` = `start_gas` - `gas_used` where `gas_used` is the gas used in the above step), the `target` as the to address, 0xff...ff as the sender, 0 value, and the transaction `data` as data.
+* If either of the two executions fail, and <= 200000 gas has been consumed (i.e., `start_gas - remaining_gas <= 200000`, where `remaining_gas` is the remaining gas after the above two steps), the transaction is invalid.
+* Otherwise, `remaining_gas * gasprice` is refunded, and the fee paid is added to a fee counter (note: fees are NOT immediately added to the coinbase balance; instead, fees are added all at once during block finalization).
 
 ### Two-layer trie redesign
 
@@ -312,9 +312,9 @@ The existing account model is replaced with one where there is a single-layer tr
 * Code of account X: `sha3(X) ++ 0x01`
 * Storage key K of account X: `sha3(X) ++ 0x02 ++ K`
 
-See also ethresearch thread on [A two-layer account trie inside a single-layer trie](https://ethresear.ch/t/a-two-layer-account-trie-inside-a-single-layer-trie/210)
+See also the ethresear.ch thread on [a two-layer account trie inside a single-layer trie](https://ethresear.ch/t/a-two-layer-account-trie-inside-a-single-layer-trie/210).
 
-Additionally, the trie is now a new binary trie design: https://github.com/ethereum/research/tree/master/trie_research
+Additionally, the trie is now a new binary trie design as defined [here](https://github.com/ethereum/research/tree/master/trie_research).
 
 ### Access list
 
@@ -338,11 +338,11 @@ def to_prefix_list_form(access_list):
 
 One can compute the witness for a transaction by taking the transaction's access list, converting it into prefix list form, then running the algorithm `get_witness_for_prefix` for each item in the prefix list form, and taking the union of these results.
 
-`get_witness_for_prefix` returns a minimal set of trie nodes that are sufficient to access any key which starts with the given prefix. See implementation here: https://github.com/ethereum/research/blob/b0de8d352f6236c9fa2244fed871546fabb016d1/trie_research/new_bintrie.py#L250
+`get_witness_for_prefix` returns a minimal set of trie nodes that are sufficient to access any key which starts with the given prefix. See an implementation [here]( https://github.com/ethereum/research/blob/b0de8d352f6236c9fa2244fed871546fabb016d1/trie_research/new_bintrie.py#L250).
 
-In the EVM, any attempt to access (either by calling or SLOAD'ing or via an opcode such as `BALANCE` or `EXTCODECOPY`) an account that is outside the access list will lead to the EVM instance that made the access attempt immediately throwing an exception.
+In the EVM, any attempt to access an account (either by calling or `SLOAD`ing or via an opcode such as `BALANCE` or `EXTCODECOPY`)  that is outside the access list will lead to the EVM instance that made the access attempt immediately throwing an exception.
 
-See also ethresearch thread on [Account read/write lists](https://ethresear.ch/t/account-read-write-lists/285).
+See also the ethresear.ch thread on [account read/write lists](https://ethresear.ch/t/account-read-write-lists/285).
 
 ### Gas costs
 
@@ -350,9 +350,9 @@ To be finalized.
 
 ## Subsequent phases
 
-This allows for a quick and dirty form of medium-security proof of stake sharding in a way that achieves quadratic scaling through separation of concerns between block proposers and collators, and thereby increases throughput by ~100x without too many changes to the protocol or software architecture. This is intended to serve as the first phase in a multi-phase plan to fully roll out quadratic sharding, the latter phases of which are described below.
+This allows for a simple form of medium-security proof of stake sharding in a way that achieves quadratic scaling through the separation of concerns between block proposers and collators, and thereby increases throughput by ~100x without too many changes to the protocol or software architecture. This is intended to serve as the first phase in a multi-phase plan to fully roll out quadratic sharding, the latter phases of which are described below and also as discussed [here](https://youtu.be/Yo9o5nDTAAQ?t=29774).
 
-* **Phase 2 (two-way pegging)**: see section on `USED_RECEIPT_STORE`, still to be written
-* **Phase 3, option a**: require collation headers to be added in as uncles instead of as transactions
-* **Phase 3, option b**: require collation headers to be added in an array, where item `i` in the array must be either a collation header of shard `i` or the empty string, and where the extra data must be the hash of this array (soft fork)
+* **Phase 2 (two-way pegging)**: see the code on `USED_RECEIPT_STORE` [here](https://github.com/ethereum/sharding/blob/develop/sharding/used_receipt_store_utils.py), while the doc for such code is still to be written.
+* **Phase 3, option a**: require collation headers to be added in to uncles on the main chain instead of as transactions.
+* **Phase 3, option b**: require collation headers to be added in as an array to blocks on the main chainn, where item `i` in the array must be either a collation header of shard `i` or the empty string, and where the extra data field in the block must be the hash of this array. (This option would be a soft fork).
 * **Phase 4 (tight coupling)**: blocks are no longer valid if they point to invalid or unavailable collations. Add data availability proofs.
