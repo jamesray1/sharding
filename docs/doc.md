@@ -350,7 +350,7 @@ To be finalized.
 
 ## Subsequent phases
 
-This allows for a simple form of medium-security proof of stake sharding in a way that achieves quadratic scaling through the separation of concerns between block proposers and collators, and thereby increases throughput by ~100x without too many changes to the protocol or software architecture. This is intended to serve as the first phase in a multi-phase plan to fully roll out quadratic sharding, the latter phases of which are described below and also as discussed [here](https://youtu.be/Yo9o5nDTAAQ?t=29774).
+This allows for a simple form of medium-security proof of stake sharding in a way that achieves quadratic scaling through the separation of concerns between block proposers and collators, and thereby increases throughput by ~100x without too many changes to the protocol or software architecture. This is intended to serve as the first phase in a multi-phase plan to fully roll out quadratic sharding, the latter phases of which are described below and also as discussed [here](https://youtu.be/Yo9o5nDTAAQ?t=29774). (The whole presentation is [here](https://youtu.be/Yo9o5nDTAAQ?t=7h55m35s).)
 
 * **Phase 2 (two-way pegging)**: see the code on `USED_RECEIPT_STORE` [here](https://github.com/ethereum/sharding/blob/develop/sharding/used_receipt_store_utils.py), while the doc for such code is still to be written.
 * **Phase 3, option a**: require collation headers to be added in to uncles on the main chain instead of as transactions.
