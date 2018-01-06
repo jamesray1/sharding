@@ -15,7 +15,7 @@ Please refer to [pyethereum - Developer-Notes](https://github.com/ethereum/pyeth
 git clone https://github.com/ethereum/sharding/
 virtualenv -p python3.6 sharding
 cd sharding
-python setup.py install
+sudo python3.6 setup.py install
 ```
  
 ### Install with specific pyethereum branch and commit hash
