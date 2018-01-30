@@ -15,25 +15,25 @@ log = get_logger('sharding.collator')
 
 
 def apply_collation(state, collation, period_start_prevblock, mainchain_state, shard_id=None):
-    """Apply collation
+    """Apply a collation.
     """
     snapshot = state.snapshot()
     cs = get_consensus_strategy(state.config)
 
     try:
-        # Call the initialize state transition function
+        # Call the initialize state transition function.
         cs.initialize(state, period_start_prevblock)
         # Collation Gas Limit
         gas_limit = call_valmgr(mainchain_state, 'get_collation_gas_limit', [])
         state_transition.set_collation_gas_limit(state, gas_limit)
         # assert cs.check_seal(state, period_start_prevblock.header)
-        # Validate tx_list_root in collation first
+        # Validate tx_list_root in collation first.
         assert state_transition.validate_transaction_tree(collation)
         for tx in collation.transactions:
             apply_shard_transaction(
                 mainchain_state, state, shard_id, tx
             )
-        # Set state root, receipt root, etc
+        # Set state root, receipt root, etc.
         state_transition.finalize(state, collation.header.coinbase)
         assert state_transition.verify_execution_results(state, collation)
     except (ValueError, AssertionError) as e:
@@ -51,16 +51,16 @@ def create_collation(
         key,
         txqueue=None,
         period_start_prevhash=None):
-    """Create a collation
+    """Create a collation.
 
     chain: MainChain
     shard_id: id of ShardChain
-    parent_collation_hash: the hash of the parent collation
-    expected_period_number: the period number in which this collation expects to be included
+    parent_collation_hash: the hash of the parent collation.
+    expected_period_number: the period number in which this collation expects to be included.
     coinbase: coinbase
     key: key for sig
     txqueue: transaction queue
-    period_start_prevhash: the block hash of block PERIOD_LENGTH * expected_period_number - 1
+    period_start_prevhash: the block hash of block PERIOD_LENGTH * expected_period_number - 1.
     """
     log.info('Creating a collation')
 
@@ -69,23 +69,23 @@ def create_collation(
     temp_state = chain.shards[shard_id].mk_poststate_of_collation_hash(parent_collation_hash)
     cs = get_consensus_strategy(temp_state.config)
 
-    # Set period_start_prevblock info
+    # Set period_start_prevblock info.
     if period_start_prevhash is None:
         period_start_prevhash = chain.get_period_start_prevhash(expected_period_number)
         assert period_start_prevhash is not None
     period_start_prevblock = chain.get_block(period_start_prevhash)
-    # Call the initialize state transition function
+    # Call the initialize state transition function.
     cs.initialize(temp_state, period_start_prevblock)
     # Collation Gas Limit
     gas_limit = call_valmgr(chain.state, 'get_collation_gas_limit', [])
     state_transition.set_collation_gas_limit(temp_state, gas_limit)
-    # Initialize a collation with the given previous state and current coinbase
+    # Initialize a collation with the given previous state and current coinbase.
     collation = state_transition.mk_collation_from_prevstate(chain.shards[shard_id], temp_state, coinbase)
-    # Add transactions
+    # Add transactions.
     state_transition.add_transactions(temp_state, collation, txqueue, chain.state, shard_id)
-    # Call the finalize state transition function
+    # Call the finalize state transition function.
     state_transition.finalize(temp_state, collation.header.coinbase)
-    # Set state root, receipt root, etc
+    # Set state root, receipt root, etc.
     state_transition.set_execution_results(temp_state, collation)
 
     collation.header.shard_id = shard_id
@@ -106,9 +106,9 @@ def create_collation(
 
 
 def verify_collation_header(chain, header):
-    """Verify the collation
+    """Verify the collation.
 
-    Validate the collation header before calling ShardChain.add_collation
+    Validate the collation header before calling ShardChain.add_collation.
 
     chain: MainChain
     header: the given collation header
@@ -116,7 +116,7 @@ def verify_collation_header(chain, header):
     if header.shard_id < 0:
         raise ValueError('Invalid shard_id %d' % header.shard_id)
 
-    # Call contract to verify header
+    # Call the Validator Manager Contract to verify the header.
     state = chain.state.ephemeral_clone()
     block = mk_block_from_prevstate(chain, timestamp=chain.state.timestamp + 14)
     cs = get_consensus_strategy(state.config)
@@ -138,7 +138,7 @@ def verify_collation_header(chain, header):
 
 
 def get_deep_collation_hash(chain, shard_id, depth):
-    """ Get the deep collation hash from validator manager contract
+    """ Get the deep collation hash from the validator manager contract.
 
     chain: MainChain
     shard_id: id of ShardChain
@@ -178,14 +178,14 @@ def mk_fast_sync_state(chain, shard_id, collation_hash):
 
 
 def verify_fast_sync_data(chain, shard_id, received_state, received_collation_header, depth=100):
-    """ Verify the fast sync data
+    """ Verify the fast sync data.
 
     chain: MainChain
-    received_state: the given shard state from peer
-    received_collation_header: the given collation header
-    depth: the required depth between the given collation and the head collation on validator manager contract
+    received_state: the given shard state from a peer.
+    received_collation_header: the given collation header.
+    depth: the required depth between the given collation and the head collation on the validator manager contract.
     """
-    # Check if the given collation exists in the validator manager contract
+    # Check if the given collation exists in the validator manager contract.
     received_collation_score = call_valmgr(
         chain.state,
         'get_collation_headers__score',
@@ -198,7 +198,7 @@ def verify_fast_sync_data(chain, shard_id, received_state, received_collation_he
             )
         )
 
-    # Check if the state root is right
+    # Check if the state root is right.
     if received_state.trie.root_hash != received_collation_header.post_state_root:
         raise VerificationFailed(
             'FastSync: state roots don\'t match, received state: {}, \
@@ -208,7 +208,7 @@ def verify_fast_sync_data(chain, shard_id, received_state, received_collation_he
             )
         )
 
-    # Check if the given collation is deep enough (likely finalized)
+    # Check if the given collation is deep enough (in which it will likely be finalized).
     head_collation_hash = call_valmgr(chain.state, 'get_shard_head', [shard_id])
     head_collation_score = call_valmgr(
         chain.state,
