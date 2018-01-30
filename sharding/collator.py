@@ -185,7 +185,7 @@ def verify_fast_sync_data(chain, shard_id, received_state, received_collation_he
     received_collation_header: the given collation header
     depth: the required depth between the given collation and the head collation on validator manager contract
     """
-    # Check if the given collation exists in validator manager contract
+    # Check if the given collation exists in the validator manager contract
     received_collation_score = call_valmgr(
         chain.state,
         'get_collation_headers__score',
