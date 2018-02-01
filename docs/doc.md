@@ -162,7 +162,7 @@ Where `state_obj` is a tuple containing the state root and other O(1)-sized stat
 * the set of objects from the witness that have been read (which is useful for block creation); and
 * the set of new state objects that have been created to form the new state trie.
 
-This allows the functions to be "pure", as well as only dealing with small-sized objects (as opposed to the state in existing Ethereum, which is currently [hundreds of gigabytes](https://etherscan.io/chart/chaindatasizefull)), making them convenient to use for sharding.
+This allows the functions to be "pure", as well as only dealing with small-sized objects (as opposed to the state in existing Ethereum, which is [hundreds of gigabytes as of December 2017](https://www.reddit.com/r/ethtrader/comments/7axn5g/ethereum_blockchain_sizewe_have_a_problem/?st=jd4598pr&sh=f1e59d31)), making them convenient to use for sharding.
 
 ### Client logic
 
